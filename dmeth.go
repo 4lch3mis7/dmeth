@@ -51,7 +51,7 @@ func main() {
 }
 
 func enumMethods() {
-	methods := []string{"GET", "POST", "HEAD", "OPTIONS", "PUT", "PATCH", "TRACE", "DELETE"}
+	methods := []string{"GET", "POST", "HEAD", "OPTIONS", "PUT", "PATCH", "TRACE", "DELETE", "CONNECT"}
 
 	// Split status codes seperated by ","
 	splittedCodes := strings.Split(allowed_status_codes, ",")

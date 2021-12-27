@@ -59,7 +59,6 @@ func enumMethods() {
 	// Parse the splitted status codes into integers
 	var whitelist []int
 	for i := 0; i < len(splittedCodes); i++ {
-		fmt.Println(splittedCodes[i])
 		var code int
 		_, err := fmt.Sscan(splittedCodes[i], &code)
 		if err != nil {

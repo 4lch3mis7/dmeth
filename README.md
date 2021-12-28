@@ -5,6 +5,10 @@
 go install github.com/prasant-paudel/dmeth@latest
 ```
 
+## Screenshots
+![dMeth](images/screenshot.png "dMeth Screenshot")
+
+
 ## Usage
 Flag | Description          
 -----|------------

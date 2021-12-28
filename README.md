@@ -11,7 +11,7 @@ Flag | Description
 -t   | Target URL   
 -T   | LIst of targets
 -s   | Allowed status codes
--h   | show help menu  
+-h   | Show help menu  
 
 ## Examples
 ```

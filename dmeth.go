@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -24,6 +25,12 @@ dMeth - A tool to discover allowed HTTP methods in a URL
 
 `
 
+var ch = make(chan string)
+var methods = []string{
+	"GET", "POST", "HEAD", "OPTIONS",
+	"PUT", "PATCH", "TRACE", "DELETE",
+}
+
 var target string
 var targetsPath string
 var allowedStatusCodes string
@@ -42,56 +49,79 @@ func parseArguments() {
 		flag.Usage()
 		os.Exit(0)
 	}
-
 }
 
 func main() {
+	var targetUrls []string
+
 	parseArguments()
-	enumMethods()
-}
 
-func enumMethods() {
-	methods := []string{"GET", "POST", "HEAD", "OPTIONS", "PUT", "PATCH", "TRACE", "DELETE"}
+	// Single target
+	if target != "" {
+		targetUrls = append(targetUrls, target)
+	}
+	// Multiple targets
+	if targetsPath != "" {
+		for _, ln := range readLines(targetsPath) {
+			targetUrls = append(targetUrls, ln)
+		}
+	}
 
-	// Split status codes seperated by ","
+	// Parse allowed status codes
 	splittedCodes := strings.Split(allowedStatusCodes, ",")
-
-	// Parse the splitted status codes into integers
-	var whitelist []int
-	for i := 0; i < len(splittedCodes); i++ {
-		var code int
-		_, err := fmt.Sscan(splittedCodes[i], &code)
+	var allowedStatusCodes []int
+	for _, code := range splittedCodes {
+		var _i int
+		_, err := fmt.Sscan(code, &_i)
 		if err != nil {
-			log.Fatal("Invalid status code: ", splittedCodes[i])
+			log.Fatal("Invalid status code: ", code)
 		}
-		whitelist = append(whitelist, code)
+		allowedStatusCodes = append(allowedStatusCodes, _i)
 	}
 
-	// Iterate over list of methods
-	for i := 0; i < len(methods); i++ {
-		resp := req(methods[i], target)
-		if containsInt(whitelist, resp.StatusCode) {
-			fmt.Println("[+] ", methods[i], "\t:\t", resp.StatusCode, " --> ", target)
+	// Run goroutines to check the status
+	for _, url := range targetUrls {
+		for _, method := range methods {
+			go checkStatus(method, url, allowedStatusCodes)
 		}
 	}
+
+	// Print the output from channels
+	for range targetUrls {
+		for range methods {
+			fmt.Print(<-ch)
+		}
+	}
+
+	close(ch)
 }
 
-func req(method string, url string) *http.Response {
+func checkStatus(method string, url string, allowedStatusCodes []int) {
 	method = strings.ToUpper(method)
 
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		log.Fatal("Error reading request. ", err)
+		_e := fmt.Sprintln("[!]", method, " Error reading request. ", err)
+		// log.Fatal(_e)
+		ch <- _e
+		return
 	}
 
 	client := &http.Client{Timeout: time.Second * 10}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Error reading response. ", err)
+		_e := fmt.Sprintln("[!]", method, " Error reading response. ", err)
+		// log.Fatal(_e)
+		ch <- _e
+		return
 	}
 
-	return resp
+	if containsInt(allowedStatusCodes, resp.StatusCode) {
+		ch <- fmt.Sprintln("[+] "+method+strings.Repeat(" ", 8-len(method))+":", resp.StatusCode, " | URL: ", url)
+	} else {
+		ch <- ""
+	}
 
 }
 
@@ -102,4 +132,19 @@ func containsInt(arr []int, e int) bool {
 		}
 	}
 	return false
+}
+
+func readLines(filePath string) []string {
+	var lines []string
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		lines = append(lines, strings.TrimSpace(scanner.Text()))
+	}
+	file.Close()
+	return lines
 }

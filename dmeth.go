@@ -11,6 +11,18 @@ import (
 	"time"
 )
 
+const colorReset = "\033[0m"
+
+const colorRed = "\033[31m"
+const colorGreen = "\033[32m"
+const colorYellow = "\033[33m"
+const colorBlue = "\033[34m"
+const colorPurple = "\033[35m"
+const colorCyan = "\033[36m"
+const colorWhite = "\033[37m"
+
+const bgYellow = "\033[43m"
+
 const banner = `
           dP 8888ba.88ba             dP   dP       
           88 88  '8b  '8b            88   88       
@@ -35,7 +47,7 @@ dmeth -T target_urls.txt -s 200,300
 var ch = make(chan string)
 var methods = []string{
 	"GET", "POST", "HEAD", "OPTIONS",
-	"PUT", "PATCH", "TRACE", "DELETE",
+	"PUT", "PATCH", "UPDATE", "TRACE", "DELETE",
 }
 
 var target string
@@ -109,7 +121,7 @@ func checkStatus(method string, url string, allowedStatusCodes []int) {
 
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		_e := fmt.Sprintln("[!]", method, " Error reading request. ", err)
+		_e := fmt.Sprintln(colorRed+"[!]", method, " Error reading request. ", err, colorReset)
 		// log.Fatal(_e)
 		ch <- _e
 		return
@@ -119,14 +131,27 @@ func checkStatus(method string, url string, allowedStatusCodes []int) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		_e := fmt.Sprintln("[!]", method, " Error reading response. ", err)
+		_e := fmt.Sprintln(colorRed+"[!]", method, " Error reading response. ", err, colorReset)
 		// log.Fatal(_e)
 		ch <- _e
 		return
 	}
 
 	if containsInt(allowedStatusCodes, resp.StatusCode) {
-		ch <- fmt.Sprintln("[+] "+method+strings.Repeat(" ", 8-len(method))+":", resp.StatusCode, " | URL: ", url)
+		output := fmt.Sprintln("[+] "+method+strings.Repeat(" ", 8-len(method))+":", resp.StatusCode, " | URL: ", url)
+		if method == "GET" || method == "HEAD" {
+			output = colorCyan + output + colorReset
+		} else if method == "POST" {
+			output = colorGreen + output + colorReset
+		} else if method == "DELETE" {
+			output = colorRed + output + colorReset
+		} else if method == "PUT" || method == "PATCH" || method == "UPDATE" {
+			output = colorYellow + output + colorReset
+		} else if method == "OPTIONS" {
+			output = colorPurple + output + colorReset
+		}
+
+		ch <- output
 	} else {
 		ch <- ""
 	}

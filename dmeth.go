@@ -24,6 +24,13 @@ dMeth - A tool to discover allowed HTTP methods in a URL
     ==> https://github.com/prasant-paudel/dmeth <==
 
 `
+const examples = `
+Examples:
+dmeth -t https://google.com
+dmeth -T target_urls.txt
+dmeth -t https://google.com -s 200,300
+dmeth -T target_urls.txt -s 200,300
+`
 
 var ch = make(chan string)
 var methods = []string{
@@ -47,6 +54,7 @@ func parseArguments() {
 	if helpFlag || (target == "" && targetsPath == "") {
 		fmt.Print(banner)
 		flag.Usage()
+		fmt.Print(examples)
 		os.Exit(0)
 	}
 }

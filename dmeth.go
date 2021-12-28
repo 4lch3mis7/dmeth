@@ -25,19 +25,19 @@ dMeth - A tool to discover allowed HTTP methods in a URL
 `
 
 var target string
-var targets_path string
-var allowed_status_codes string
-var help_menu string
+var targetsPath string
+var allowedStatusCodes string
+var helpFlag bool
 
 func parseArguments() {
 	flag.StringVar(&target, "t", "", "Target URL")
-	flag.StringVar(&targets_path, "T", "", "List of targets [File]")
-	flag.StringVar(&allowed_status_codes, "s", "200", "Allowed status codes (default=200)")
-	flag.StringVar(&help_menu, "h", "", "Show this help menu")
+	flag.StringVar(&targetsPath, "T", "", "List of targets [File]")
+	flag.StringVar(&allowedStatusCodes, "s", "200", "Allowed status codes (default=200)")
+	flag.BoolVar(&helpFlag, "h", false, "Show this help menu")
 
 	flag.Parse()
 
-	if target == "" && targets_path == "" {
+	if helpFlag || (target == "" && targetsPath == "") {
 		fmt.Print(banner)
 		flag.Usage()
 		os.Exit(0)
@@ -54,7 +54,7 @@ func enumMethods() {
 	methods := []string{"GET", "POST", "HEAD", "OPTIONS", "PUT", "PATCH", "TRACE", "DELETE"}
 
 	// Split status codes seperated by ","
-	splittedCodes := strings.Split(allowed_status_codes, ",")
+	splittedCodes := strings.Split(allowedStatusCodes, ",")
 
 	// Parse the splitted status codes into integers
 	var whitelist []int

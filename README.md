@@ -26,3 +26,6 @@ dmeth -t https://google.com -s 200,300
 ```
 dmeth -T target_urls.txt -s 200,300
 ```
+```
+dmeth -T target_urls.txt -m post,delete
+```

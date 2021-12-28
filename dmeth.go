@@ -41,7 +41,7 @@ Examples:
 dmeth -t https://google.com
 dmeth -T target_urls.txt
 dmeth -t https://google.com -s 200,300
-dmeth -T target_urls.txt -s 200,300
+dmeth -T target_urls.txt -m post,delete
 `
 
 var ch = make(chan string)
@@ -54,11 +54,13 @@ var target string
 var targetsPath string
 var allowedStatusCodes string
 var helpFlag bool
+var allowedMethods string
 
 func parseArguments() {
 	flag.StringVar(&target, "t", "", "Target URL")
 	flag.StringVar(&targetsPath, "T", "", "List of targets [File]")
 	flag.StringVar(&allowedStatusCodes, "s", "200", "Allowed status codes")
+	flag.StringVar(&allowedMethods, "m", "all", "Allowed HTTP methods to look for")
 	flag.BoolVar(&helpFlag, "h", false, "Show this help menu")
 
 	flag.Parse()
@@ -68,6 +70,16 @@ func parseArguments() {
 		flag.Usage()
 		fmt.Print(examples)
 		os.Exit(0)
+	}
+
+	if allowedMethods != "all" {
+		var _meths []string
+		for _, m := range strings.Split(allowedMethods, ",") {
+			m = strings.TrimSpace(m)
+			m = strings.ToUpper(m)
+			_meths = append(_meths, m)
+		}
+		methods = _meths
 	}
 }
 

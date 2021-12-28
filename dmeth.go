@@ -64,7 +64,7 @@ func parseArguments() {
 	flag.Parse()
 
 	if helpFlag || (target == "" && targetsPath == "") {
-		fmt.Print(banner)
+		fmt.Print(colorPurple, banner, colorReset)
 		flag.Usage()
 		fmt.Print(examples)
 		os.Exit(0)

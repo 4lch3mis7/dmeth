@@ -39,7 +39,7 @@ var helpFlag bool
 func parseArguments() {
 	flag.StringVar(&target, "t", "", "Target URL")
 	flag.StringVar(&targetsPath, "T", "", "List of targets [File]")
-	flag.StringVar(&allowedStatusCodes, "s", "200", "Allowed status codes (default=200)")
+	flag.StringVar(&allowedStatusCodes, "s", "200", "Allowed status codes")
 	flag.BoolVar(&helpFlag, "h", false, "Show this help menu")
 
 	flag.Parse()

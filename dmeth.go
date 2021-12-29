@@ -133,9 +133,10 @@ func checkStatus(method string, url string, allowedStatusCodes []int) {
 
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		_e := fmt.Sprintln(colorRed+"[!]", method, " Error reading request. ", err, colorReset)
+		// _e := fmt.Sprintln(colorRed+"[!]", method, " Error reading request. ", err, colorReset)
 		// log.Fatal(_e)
-		ch <- _e
+		// ch <- _e
+		ch <- ""
 		return
 	}
 
@@ -143,9 +144,10 @@ func checkStatus(method string, url string, allowedStatusCodes []int) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		_e := fmt.Sprintln(colorRed+"[!]", method, " Error reading response. ", err, colorReset)
+		// _e := fmt.Sprintln(colorRed+"[!]", method, " Error reading response. ", err, colorReset)
 		// log.Fatal(_e)
-		ch <- _e
+		// ch <- _e
+		ch <- ""
 		return
 	}
 

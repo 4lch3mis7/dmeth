@@ -1,4 +1,4 @@
-# dMeth - dMeth - A tool to discover allowed HTTP methods in a URL
+# dMeth - A tool to discover allowed HTTP methods in a URL
 
 ## Installation
 ```

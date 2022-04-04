@@ -63,7 +63,7 @@ var helpFlag bool
 func parseArguments() {
 	flag.StringVar(&target, "t", "", "Target URL")
 	flag.StringVar(&targetsPath, "T", "", "List of targets [File]")
-	flag.StringVar(&allowedStatusCodes, "s", "200", "Allowed status codes")
+	flag.StringVar(&allowedStatusCodes, "s", "", "Allowed status codes")
 	flag.StringVar(&blockedStatusCodes, "b", "405", "Blocked status codes")
 	flag.StringVar(&allowedMethods, "m", "all", "Allowed HTTP methods to look for")
 	flag.BoolVar(&verbose, "v", false, "Show all responses")

@@ -6,7 +6,11 @@ go install github.com/prasant-paudel/dmeth@latest
 ```
 
 ## Screenshots
-![dMeth](images/screenshot.png "dMeth Screenshot")
+Screenshot 1 <br>
+![dMeth](images/screenshot1.png "dMeth Screenshot 1") 
+
+Screenshot 2 <br>
+![dMeth](images/screenshot2.png "dMeth Screenshot 2")
 
 
 ## Usage

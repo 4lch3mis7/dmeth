@@ -48,19 +48,25 @@ var ch = make(chan string)
 var methods = []string{
 	"GET", "POST", "HEAD", "OPTIONS",
 	"PUT", "PATCH", "UPDATE", "TRACE", "DELETE",
+	"COPY", "LINK", "UNLINK", "PURGE", "LOCK", "UNLOCK",
+	"PROFIND", "VIEW",
 }
 
 var target string
 var targetsPath string
 var allowedStatusCodes string
-var helpFlag bool
+var blockedStatusCodes string
 var allowedMethods string
+var verbose bool
+var helpFlag bool
 
 func parseArguments() {
 	flag.StringVar(&target, "t", "", "Target URL")
 	flag.StringVar(&targetsPath, "T", "", "List of targets [File]")
 	flag.StringVar(&allowedStatusCodes, "s", "200", "Allowed status codes")
+	flag.StringVar(&blockedStatusCodes, "b", "405", "Blocked status codes")
 	flag.StringVar(&allowedMethods, "m", "all", "Allowed HTTP methods to look for")
+	flag.BoolVar(&verbose, "v", false, "Show all responses")
 	flag.BoolVar(&helpFlag, "h", false, "Show this help menu")
 
 	flag.Parse()
@@ -111,10 +117,22 @@ func main() {
 		allowedStatusCodes = append(allowedStatusCodes, _i)
 	}
 
+	// Parse blocked status codes
+	splittedCodes = strings.Split(blockedStatusCodes, ",")
+	var blockedStatusCodes []int
+	for _, code := range splittedCodes {
+		var _i int
+		_, err := fmt.Sscan(code, &_i)
+		if err != nil {
+			log.Fatal("Invalid status code: ", code)
+		}
+		blockedStatusCodes = append(blockedStatusCodes, _i)
+	}
+
 	// Run goroutines to check the status
 	for _, url := range targetUrls {
 		for _, method := range methods {
-			go checkStatus(method, url, allowedStatusCodes)
+			go checkStatus(method, url, allowedStatusCodes, blockedStatusCodes)
 		}
 	}
 
@@ -128,7 +146,7 @@ func main() {
 	close(ch)
 }
 
-func checkStatus(method string, url string, allowedStatusCodes []int) {
+func checkStatus(method string, url string, allowedStatusCodes []int, blockedStatusCodes []int) {
 	method = strings.ToUpper(method)
 
 	req, err := http.NewRequest(method, url, nil)
@@ -151,7 +169,7 @@ func checkStatus(method string, url string, allowedStatusCodes []int) {
 		return
 	}
 
-	if containsInt(allowedStatusCodes, resp.StatusCode) {
+	if verbose || !containsInt(blockedStatusCodes, resp.StatusCode) || containsInt(allowedStatusCodes, resp.StatusCode) {
 		output := fmt.Sprintln("[+] "+method+strings.Repeat(" ", 8-len(method))+":", resp.StatusCode, " | URL: ", url)
 		if method == "GET" || method == "HEAD" {
 			output = colorCyan + output + colorReset

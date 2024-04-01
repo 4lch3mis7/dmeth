@@ -6,39 +6,28 @@ go install github.com/prasant-paudel/dmeth@latest
 ```
 
 ## Screenshots
-Screenshot 1 <br>
-![dMeth](images/screenshot1.png "dMeth Screenshot 1") 
-
-Screenshot 2 <br>
-![dMeth](images/screenshot2.png "dMeth Screenshot 2")
+![dMeth](images/dmeth.png "dMeth Screenshot") 
 
 
 ## Usage
 Flag | Description          
 -----|------------
--t   | Target URL   
--T   | LIst of targets
 -s   | Allowed status codes
 -b   | Blocked status codes
+-m   | Allowed HTTP methods to look for
 -v   | Show all responses (including `405` i.e. `Method Not Allowed`)
 -h   | Show help menu  
 
 ## Examples
 ```
-dmeth -t https://google.com
+dmeth https://example.com
 ```
 ```
-dmeth -v -t https://google.com
+dmeth -s 200,301 -m post,delete target_urls.txt
 ```
 ```
-dmeth -T target_urls.txt
+echo "https://example.com" | dmeth -b 405 -m post
 ```
 ```
-dmeth -t https://google.com -s 200,300
-```
-```
-dmeth -T target_urls.txt -s 200,300
-```
-```
-dmeth -T target_urls.txt -m post,delete
+cat target_urls.txt | dmeth
 ```

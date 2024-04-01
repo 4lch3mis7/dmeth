@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 )
 
 const colorReset = "\033[0m"
@@ -24,57 +23,73 @@ const colorWhite = "\033[37m"
 const bgYellow = "\033[43m"
 
 const banner = `
-          dP 8888ba.88ba             dP   dP       
-          88 88  '8b  '8b            88   88       
-    .d888b88 88   88   88 .d8888b. d8888P 88d888b. 
-    88'  '88 88   88   88 88ooood8   88   88'  '88 
-    88.  .88 88   88   88 88.  ...   88   88    88 
-    '88888P8 dP   dP   dP '88888P'   dP   dP    dP 
-========================================================
-dMeth - A tool to discover allowed HTTP methods in a URL
-========================================================
-    ==> https://github.com/prasant-paudel/dmeth <==
+           dP 8888ba.88ba             dP   dP       
+           88 88  '8b  '8b            88   88       
+     .d888b88 88   88   88 .d8888b. d8888P 88d888b. 
+     88'  '88 88   88   88 88ooood8   88   88'  '88 
+     88.  .88 88   88   88 88.  ...   88   88    88 
+     '88888P8 dP   dP   dP '88888P'   dP   dP    dP 
+==========================================================
+dMeth - Concurrently discover allowed HTTP methods in URLs
+==========================================================
+     ==> https://github.com/prasant-paudel/dmeth <==
 
 `
-const examples = `
-Examples:
-dmeth -t https://google.com
-dmeth -T target_urls.txt
-dmeth -t https://google.com -s 200,300
-dmeth -T target_urls.txt -m post,delete
+const usage = `USAGE:
+dmeth [OPTIONS] [TARGET]
+
+OPTIONS:
+-s  string 	Allowed status codes
+-b  string 	Blocked status codes (default=405,501)
+-v       	Verbose (show all responses)
+-h       	Show help menu 
+
+EXAMPLES:
+1. dmeth https://example.com
+2. dmeth -s 200,301 -m post,delete target_urls.txt
+3. echo "https://example.com" | dmeth -b 405 -m post
+4. cat target_urls.txt | dmeth
 `
 
 var ch = make(chan string)
 var methods = []string{
-	"GET", "POST", "HEAD", "OPTIONS",
-	"PUT", "PATCH", "UPDATE", "TRACE", "DELETE",
-	"COPY", "LINK", "UNLINK", "PURGE", "LOCK", "UNLOCK",
-	"PROFIND", "VIEW",
+	"GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS",
+	"TRACE", "PATCH",
 }
 
-var target string
-var targetsPath string
-var allowedStatusCodes string
-var blockedStatusCodes string
-var allowedMethods string
-var verbose bool
-var helpFlag bool
+var (
+	targetUrls         []string
+	allowedStatusCodes string
+	blockedStatusCodes string
+	allowedMethods     string
+	verbose            bool
+	helpFlag           bool
+)
+
+type Response struct {
+	Method     string
+	URL        string
+	StatusCode int
+	Error      error
+}
 
 func parseArguments() {
-	flag.StringVar(&target, "t", "", "Target URL")
-	flag.StringVar(&targetsPath, "T", "", "List of targets [File]")
 	flag.StringVar(&allowedStatusCodes, "s", "", "Allowed status codes")
-	flag.StringVar(&blockedStatusCodes, "b", "405", "Blocked status codes")
+	flag.StringVar(&blockedStatusCodes, "b", "405,501", "Blocked status codes")
 	flag.StringVar(&allowedMethods, "m", "all", "Allowed HTTP methods to look for")
-	flag.BoolVar(&verbose, "v", false, "Show all responses")
+	flag.BoolVar(&verbose, "v", false, "Blocked status codes")
 	flag.BoolVar(&helpFlag, "h", false, "Show this help menu")
-
 	flag.Parse()
 
-	if helpFlag || (target == "" && targetsPath == "") {
+	if allowedStatusCodes != "" {
+		blockedStatusCodes = ""
+	}
+
+	targetUrls = getTargets()
+
+	if helpFlag || len(targetUrls) == 0 {
 		fmt.Print(colorPurple, banner, colorReset)
-		flag.Usage()
-		fmt.Print(examples)
+		fmt.Print(usage)
 		os.Exit(0)
 	}
 
@@ -90,104 +105,121 @@ func parseArguments() {
 }
 
 func main() {
-	var targetUrls []string
-
 	parseArguments()
+	fmt.Print(colorPurple, banner, colorReset)
 
-	// Single target
-	if target != "" {
-		targetUrls = append(targetUrls, target)
+	s := ParseStatusCodes(allowedStatusCodes)
+	b := ParseStatusCodes(blockedStatusCodes)
+
+	if len(b) > 0 && len(s) > 0 {
+		log.Fatalln("[!] Flags -s and -b can not be used at the same time.")
 	}
-	// Multiple targets
-	if targetsPath != "" {
-		for _, ln := range readLines(targetsPath) {
-			targetUrls = append(targetUrls, ln)
+
+	resCh := make(chan Response)
+
+	for _, m := range methods {
+		requests := CreateRequests(m, targetUrls)
+		go SendRequests(requests, resCh)
+	}
+
+	for range len(methods) * len(targetUrls) {
+		res := <-resCh
+		if verbose || containsInt(s, res.StatusCode) || (len(s) == 0 && !containsInt(b, res.StatusCode)) {
+			fmt.Print(res.String())
 		}
 	}
-
-	// Parse allowed status codes
-	splittedCodes := strings.Split(allowedStatusCodes, ",")
-	var allowedStatusCodes []int
-	for _, code := range splittedCodes {
-		var _i int
-		_, err := fmt.Sscan(code, &_i)
-		if err != nil {
-			log.Fatal("Invalid status code: ", code)
-		}
-		allowedStatusCodes = append(allowedStatusCodes, _i)
-	}
-
-	// Parse blocked status codes
-	splittedCodes = strings.Split(blockedStatusCodes, ",")
-	var blockedStatusCodes []int
-	for _, code := range splittedCodes {
-		var _i int
-		_, err := fmt.Sscan(code, &_i)
-		if err != nil {
-			log.Fatal("Invalid status code: ", code)
-		}
-		blockedStatusCodes = append(blockedStatusCodes, _i)
-	}
-
-	// Run goroutines to check the status
-	for _, url := range targetUrls {
-		for _, method := range methods {
-			go checkStatus(method, url, allowedStatusCodes, blockedStatusCodes)
-		}
-	}
-
-	// Print the output from channels
-	for range targetUrls {
-		for range methods {
-			fmt.Print(<-ch)
-		}
-	}
-
-	close(ch)
 }
 
-func checkStatus(method string, url string, allowedStatusCodes []int, blockedStatusCodes []int) {
-	method = strings.ToUpper(method)
-
-	req, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		// _e := fmt.Sprintln(colorRed+"[!]", method, " Error reading request. ", err, colorReset)
-		// log.Fatal(_e)
-		// ch <- _e
-		ch <- ""
-		return
-	}
-
-	client := &http.Client{Timeout: time.Second * 10}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		// _e := fmt.Sprintln(colorRed+"[!]", method, " Error reading response. ", err, colorReset)
-		// log.Fatal(_e)
-		// ch <- _e
-		ch <- ""
-		return
-	}
-
-	if verbose || !containsInt(blockedStatusCodes, resp.StatusCode) || containsInt(allowedStatusCodes, resp.StatusCode) {
-		output := fmt.Sprintln("[+] "+method+strings.Repeat(" ", 8-len(method))+":", resp.StatusCode, " | URL: ", url)
-		if method == "GET" || method == "HEAD" {
-			output = colorCyan + output + colorReset
-		} else if method == "POST" {
-			output = colorGreen + output + colorReset
-		} else if method == "DELETE" {
-			output = colorRed + output + colorReset
-		} else if method == "PUT" || method == "PATCH" || method == "UPDATE" {
-			output = colorYellow + output + colorReset
-		} else if method == "OPTIONS" {
-			output = colorPurple + output + colorReset
+func CreateRequests(method string, urls []string) (requests []*http.Request) {
+	for _, url := range targetUrls {
+		req, err := http.NewRequest(method, url, nil)
+		if err != nil {
+			fmt.Printf("[!] Error creating '%s' request for %s", method, url)
+			continue
 		}
+		requests = append(requests, req)
+	}
+	return
+}
 
-		ch <- output
-	} else {
-		ch <- ""
+func SendRequests(requests []*http.Request, outCh chan<- Response) {
+	client := &http.Client{}
+
+	for _, req := range requests {
+		res, err := client.Do(req)
+		if err != nil {
+			outCh <- Response{
+				Error: fmt.Errorf("[!] Error sending '%s' request for %s", req.Method, req.URL),
+			}
+		}
+		outCh <- Response{
+			Method:     res.Request.Method,
+			URL:        res.Request.URL.String(),
+			StatusCode: res.StatusCode,
+		}
+	}
+}
+
+func (r *Response) MethodColor() string {
+	if r.Method == "GET" || r.Method == "HEAD" {
+		return colorCyan
+	} else if r.Method == "POST" {
+		return colorGreen
+	} else if r.Method == "DELETE" {
+		return colorRed
+	} else if r.Method == "PUT" || r.Method == "PATCH" || r.Method == "UPDATE" {
+		return colorYellow
+	} else if r.Method == "OPTIONS" {
+		return colorPurple
+	}
+	return colorReset
+}
+
+func (res Response) String() string {
+	if res.Error != nil {
+		return res.Error.Error()
+	}
+	m := res.Method
+	output := fmt.Sprintln("[+] "+m+strings.Repeat(" ", 8-len(m))+":", res.StatusCode, " | URL: ", res.URL)
+	output = res.MethodColor() + output + colorReset
+	return output
+}
+
+func getTargets() []string {
+	// From stdin
+	f, _ := os.Stdin.Stat()
+	if f.Mode()&os.ModeCharDevice == 0 {
+		return ReadFileByLines(os.Stdin.Name())
 	}
 
+	// From argument
+	if len(os.Args) > 1 {
+		t := os.Args[len(os.Args)-1]
+		// If URL
+		if strings.HasPrefix(t, "http") {
+			return []string{t}
+		}
+		// If file
+		return ReadFileByLines(t)
+	}
+
+	return nil
+}
+
+func ParseStatusCodes(s string) []int {
+	var out []int
+	if s != "" {
+		splittedCodes := strings.Split(s, ",")
+		for _, code := range splittedCodes {
+			var _i int
+			_, err := fmt.Sscan(code, &_i)
+			if err != nil {
+				log.Fatal("Invalid status code: ", code)
+			}
+			out = append(out, _i)
+		}
+	}
+	return out
 }
 
 func containsInt(arr []int, e int) bool {
@@ -199,7 +231,7 @@ func containsInt(arr []int, e int) bool {
 	return false
 }
 
-func readLines(filePath string) []string {
+func ReadFileByLines(filePath string) []string {
 	var lines []string
 	file, err := os.Open(filePath)
 	if err != nil {

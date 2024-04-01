@@ -143,10 +143,10 @@ func CreateRequests(method string, urls []string) (requests []*http.Request) {
 }
 
 func SendRequests(requests []*http.Request, outCh chan<- Response) {
-	client := &http.Client{}
+	t := &http.Transport{}
 
 	for _, req := range requests {
-		res, err := client.Do(req)
+		res, err := t.RoundTrip(req)
 		if err != nil {
 			outCh <- Response{
 				Error: fmt.Errorf("[!] Error sending '%s' request for %s", req.Method, req.URL),

@@ -2,7 +2,7 @@
 
 ## Installation
 ```
-go install github.com/prasant-paudel/dmeth@latest
+go install github.com/4lch3mis7/dmeth@latest
 ```
 
 ## Screenshots
